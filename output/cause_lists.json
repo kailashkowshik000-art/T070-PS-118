@@ -1,0 +1,96 @@
+{
+  "BENCH-CIVIL-01": [
+    {
+      "case_id": "CS-2026-009",
+      "bench_id": "BENCH-CIVIL-01",
+      "listing_date": "2026-10-29",
+      "priority_band": 5,
+      "position": 1,
+      "carry_over_indicator": false,
+      "final_hearing_indicator": true,
+      "flags": []
+    },
+    {
+      "case_id": "CS-2026-001",
+      "bench_id": "BENCH-CIVIL-01",
+      "listing_date": "2026-10-29",
+      "priority_band": 6,
+      "position": 2,
+      "carry_over_indicator": false,
+      "final_hearing_indicator": false,
+      "flags": []
+    }
+  ],
+  "BENCH-CIVIL-02": [
+    {
+      "case_id": "CS-2026-005",
+      "bench_id": "BENCH-CIVIL-02",
+      "listing_date": "2026-10-29",
+      "priority_band": 6,
+      "position": 1,
+      "carry_over_indicator": false,
+      "final_hearing_indicator": false,
+      "flags": [
+        "DELAY_CONDONATION_PENDING"
+      ]
+    }
+  ],
+  "BENCH-COMM-01": [
+    {
+      "case_id": "CS-2024-008",
+      "bench_id": "BENCH-COMM-01",
+      "listing_date": "2026-10-29",
+      "priority_band": 4,
+      "position": 1,
+      "carry_over_indicator": false,
+      "final_hearing_indicator": false,
+      "flags": []
+    },
+    {
+      "case_id": "CS-2026-010",
+      "bench_id": "BENCH-COMM-01",
+      "listing_date": "2026-10-29",
+      "priority_band": 6,
+      "position": 2,
+      "carry_over_indicator": false,
+      "final_hearing_indicator": false,
+      "flags": []
+    },
+    {
+      "case_id": "COM-2026-002",
+      "bench_id": "BENCH-COMM-01",
+      "listing_date": "2026-10-29",
+      "priority_band": 6,
+      "position": 3,
+      "carry_over_indicator": false,
+      "final_hearing_indicator": false,
+      "flags": []
+    }
+  ],
+  "BENCH-FAM-01": [
+    {
+      "case_id": "FAM-2026-007",
+      "bench_id": "BENCH-FAM-01",
+      "listing_date": "2026-10-29",
+      "priority_band": 6,
+      "position": 1,
+      "carry_over_indicator": false,
+      "final_hearing_indicator": false,
+      "flags": [
+        "IN_CAMERA"
+      ]
+    }
+  ],
+  "BENCH-CRIM-01": [
+    {
+      "case_id": "CRIM-2026-006",
+      "bench_id": "BENCH-CRIM-01",
+      "listing_date": "2026-10-29",
+      "priority_band": 1,
+      "position": 1,
+      "carry_over_indicator": false,
+      "final_hearing_indicator": true,
+      "flags": []
+    }
+  ]
+}

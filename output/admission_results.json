@@ -1,0 +1,107 @@
+[
+  {
+    "case_id": "CS-2026-001",
+    "decision": "ADMITTED",
+    "limitation_deadline": "2027-05-10",
+    "applicable_fee": "5000.00",
+    "paid_fee": "5000.00",
+    "defect_or_rejection_reason": null,
+    "required_flags": [],
+    "cure_deadline": null
+  },
+  {
+    "case_id": "COM-2026-002",
+    "decision": "ADMITTED",
+    "limitation_deadline": "2028-01-10",
+    "applicable_fee": "21000.00",
+    "paid_fee": "21000.00",
+    "defect_or_rejection_reason": null,
+    "required_flags": [],
+    "cure_deadline": null
+  },
+  {
+    "case_id": "CS-2026-003",
+    "decision": "DEFECTIVE",
+    "limitation_deadline": "2028-06-01",
+    "applicable_fee": "5000.00",
+    "paid_fee": "2000.00",
+    "defect_or_rejection_reason": "Deficient court fee paid: 2000.00 < 5000.00.",
+    "required_flags": [
+      "DEFECTIVE",
+      "FEE_DEFICIENT"
+    ],
+    "cure_deadline": "2026-10-29"
+  },
+  {
+    "case_id": "CS-2026-004",
+    "decision": "REJECTED",
+    "limitation_deadline": "2024-01-10",
+    "applicable_fee": "2500.00",
+    "paid_fee": "2500.00",
+    "defect_or_rejection_reason": "Filing is time-barred and lacks delay condonation application.",
+    "required_flags": [],
+    "cure_deadline": null
+  },
+  {
+    "case_id": "CS-2026-005",
+    "decision": "ADMITTED",
+    "limitation_deadline": "2024-01-10",
+    "applicable_fee": "5000.00",
+    "paid_fee": "5000.00",
+    "defect_or_rejection_reason": null,
+    "required_flags": [
+      "DELAY_CONDONATION_PENDING"
+    ],
+    "cure_deadline": null
+  },
+  {
+    "case_id": "CRIM-2026-006",
+    "decision": "ADMITTED",
+    "limitation_deadline": "2029-10-25",
+    "applicable_fee": "0.00",
+    "paid_fee": "0.00",
+    "defect_or_rejection_reason": null,
+    "required_flags": [],
+    "cure_deadline": null
+  },
+  {
+    "case_id": "FAM-2026-007",
+    "decision": "ADMITTED",
+    "limitation_deadline": "2029-01-15",
+    "applicable_fee": "0.00",
+    "paid_fee": "0.00",
+    "defect_or_rejection_reason": null,
+    "required_flags": [],
+    "cure_deadline": null
+  },
+  {
+    "case_id": "CS-2024-008",
+    "decision": "ADMITTED",
+    "limitation_deadline": "2026-01-01",
+    "applicable_fee": "4000.00",
+    "paid_fee": "4000.00",
+    "defect_or_rejection_reason": null,
+    "required_flags": [],
+    "cure_deadline": null
+  },
+  {
+    "case_id": "CS-2026-009",
+    "decision": "ADMITTED",
+    "limitation_deadline": "2028-05-01",
+    "applicable_fee": "13000.00",
+    "paid_fee": "13000.00",
+    "defect_or_rejection_reason": null,
+    "required_flags": [],
+    "cure_deadline": null
+  },
+  {
+    "case_id": "CS-2026-010",
+    "decision": "ADMITTED",
+    "limitation_deadline": "2028-01-03",
+    "applicable_fee": "7000.00",
+    "paid_fee": "7000.00",
+    "defect_or_rejection_reason": null,
+    "required_flags": [],
+    "cure_deadline": null
+  }
+]

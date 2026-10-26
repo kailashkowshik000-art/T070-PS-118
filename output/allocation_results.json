@@ -1,0 +1,62 @@
+[
+  {
+    "case_id": "COM-2026-002",
+    "allocated_bench_id": "BENCH-COMM-01",
+    "success": true,
+    "reason": null
+  },
+  {
+    "case_id": "CRIM-2026-006",
+    "allocated_bench_id": "BENCH-CRIM-01",
+    "success": true,
+    "reason": null
+  },
+  {
+    "case_id": "CS-2024-008",
+    "allocated_bench_id": "BENCH-COMM-01",
+    "success": true,
+    "reason": null
+  },
+  {
+    "case_id": "CS-2026-001",
+    "allocated_bench_id": "BENCH-CIVIL-01",
+    "success": true,
+    "reason": null
+  },
+  {
+    "case_id": "CS-2026-003",
+    "allocated_bench_id": null,
+    "success": false,
+    "reason": "Not admitted (DEFECTIVE): Deficient court fee paid: 2000.00 < 5000.00."
+  },
+  {
+    "case_id": "CS-2026-004",
+    "allocated_bench_id": null,
+    "success": false,
+    "reason": "Not admitted (REJECTED): Filing is time-barred and lacks delay condonation application."
+  },
+  {
+    "case_id": "CS-2026-005",
+    "allocated_bench_id": "BENCH-CIVIL-02",
+    "success": true,
+    "reason": null
+  },
+  {
+    "case_id": "CS-2026-009",
+    "allocated_bench_id": "BENCH-CIVIL-01",
+    "success": true,
+    "reason": null
+  },
+  {
+    "case_id": "CS-2026-010",
+    "allocated_bench_id": "BENCH-COMM-01",
+    "success": true,
+    "reason": null
+  },
+  {
+    "case_id": "FAM-2026-007",
+    "allocated_bench_id": "BENCH-FAM-01",
+    "success": true,
+    "reason": null
+  }
+]
