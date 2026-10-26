@@ -1,0 +1,35 @@
+[
+  {
+    "event_id": "EVT-2026-001",
+    "case_id": "CS-2024-008",
+    "hearing_date": "2024-06-15",
+    "outcome": "HEARD",
+    "adjournment_reason": null,
+    "requesting_party": null,
+    "consent_indicator": false,
+    "mentioned_at": null,
+    "notes": "Pleadings completed, stage advanced to Issues."
+  },
+  {
+    "event_id": "EVT-2026-002",
+    "case_id": "CS-2024-008",
+    "hearing_date": "2024-09-20",
+    "outcome": "ADJOURNED",
+    "adjournment_reason": "COURT_OCCASIONED",
+    "requesting_party": null,
+    "consent_indicator": false,
+    "mentioned_at": null,
+    "notes": "Bench reconstitution."
+  },
+  {
+    "event_id": "EVT-2026-003",
+    "case_id": "CS-2026-009",
+    "hearing_date": "2026-08-10",
+    "outcome": "HEARD",
+    "adjournment_reason": null,
+    "requesting_party": null,
+    "consent_indicator": false,
+    "mentioned_at": null,
+    "notes": "Evidence concluded, stage advanced to Arguments."
+  }
+]

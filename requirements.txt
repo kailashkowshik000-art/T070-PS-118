@@ -1,0 +1,4 @@
+# Core requirements
+# Python 3.10+ standard library is used for the engine implementation (dataclasses, enum, decimal, json, argparse).
+# Test runner dependency:
+pytest>=7.0.0

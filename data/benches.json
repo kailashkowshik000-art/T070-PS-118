@@ -1,0 +1,52 @@
+[
+  {
+    "bench_id": "BENCH-CIVIL-01",
+    "subject_jurisdictions": ["CIVIL"],
+    "commercial_jurisdiction": false,
+    "sitting_days": [0, 1, 2, 3, 4],
+    "daily_board_capacity": 40,
+    "leave_dates": ["2026-11-02"],
+    "conflict_party_ids": ["CORP_CONFLICT_ALPHA"],
+    "designated_family_hearing_days": [3]
+  },
+  {
+    "bench_id": "BENCH-CIVIL-02",
+    "subject_jurisdictions": ["CIVIL"],
+    "commercial_jurisdiction": false,
+    "sitting_days": [0, 1, 2, 3, 4],
+    "daily_board_capacity": 40,
+    "leave_dates": [],
+    "conflict_party_ids": [],
+    "designated_family_hearing_days": [3]
+  },
+  {
+    "bench_id": "BENCH-COMM-01",
+    "subject_jurisdictions": ["COMMERCIAL", "CIVIL"],
+    "commercial_jurisdiction": true,
+    "sitting_days": [0, 1, 2, 3, 4],
+    "daily_board_capacity": 40,
+    "leave_dates": [],
+    "conflict_party_ids": [],
+    "designated_family_hearing_days": [3]
+  },
+  {
+    "bench_id": "BENCH-FAM-01",
+    "subject_jurisdictions": ["FAMILY"],
+    "commercial_jurisdiction": false,
+    "sitting_days": [0, 1, 2, 3, 4],
+    "daily_board_capacity": 40,
+    "leave_dates": [],
+    "conflict_party_ids": [],
+    "designated_family_hearing_days": [3]
+  },
+  {
+    "bench_id": "BENCH-CRIM-01",
+    "subject_jurisdictions": ["CRIMINAL"],
+    "commercial_jurisdiction": false,
+    "sitting_days": [0, 1, 2, 3, 4],
+    "daily_board_capacity": 40,
+    "leave_dates": [],
+    "conflict_party_ids": [],
+    "designated_family_hearing_days": [3]
+  }
+]
