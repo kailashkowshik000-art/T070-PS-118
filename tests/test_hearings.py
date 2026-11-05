@@ -4,7 +4,7 @@ Team ID: T070
 Problem Statement: PS-118
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 import unittest
 
@@ -187,6 +187,146 @@ class TestHearingManagement(unittest.TestCase):
         )
         self.assertEqual(next_dt, date(2026, 11, 12))
         self.assertFalse(is_overboard)
+
+    # ==========================================
+    # New Week 3 Tests: BR-25, BR-29, BR-33, BR-38, BR-41, BR-42
+    # ==========================================
+
+    def test_hearing_outcomes_all_types(self):
+        """Verify support for HEARD, PART_HEARD, ADJOURNED, DECIDED (BR-29)."""
+        # 1. HEARD
+        c1 = Case("C-H1", "CIVIL", SubjectType.CIVIL, ["P1"], date(2026, 1, 1), assigned_bench="BENCH-H1")
+        e_heard = HearingEvent("E-H", "C-H1", date(2026, 10, 29), HearingOutcome.HEARD)
+        ok, _ = self.manager.process_hearing_event(c1, e_heard)
+        self.assertTrue(ok)
+        self.assertEqual(c1.status, CaseStatus.HEARD)
+
+        # 2. PART_HEARD
+        c2 = Case("C-H2", "CIVIL", SubjectType.CIVIL, ["P1"], date(2026, 1, 1), assigned_bench="BENCH-H1")
+        e_part = HearingEvent("E-PH", "C-H2", date(2026, 10, 29), HearingOutcome.PART_HEARD)
+        ok, _ = self.manager.process_hearing_event(c2, e_part)
+        self.assertTrue(ok)
+        self.assertTrue(c2.is_part_heard)
+
+        # 3. DECIDED
+        c3 = Case("C-H3", "CIVIL", SubjectType.CIVIL, ["P1"], date(2026, 1, 1), assigned_bench="BENCH-H1", stage=CaseStage.ARGUMENTS)
+        e_dec = HearingEvent("E-DEC", "C-H3", date(2026, 10, 29), HearingOutcome.DECIDED)
+        ok, _ = self.manager.process_hearing_event(c3, e_dec)
+        self.assertTrue(ok)
+        self.assertEqual(c3.status, CaseStatus.DECIDED)
+        self.assertIsNone(c3.next_hearing_date)
+
+    def test_evidence_delay_flag_after_180_days(self):
+        """More than 180 days in EVIDENCE stage triggers DELAY flag (BR-33)."""
+        case = Case(
+            case_id="C-EV-DELAY",
+            case_type="CIVIL",
+            subject=SubjectType.CIVIL,
+            party_ids=["P1"],
+            filing_date=date(2025, 1, 1),
+            stage=CaseStage.EVIDENCE,
+            stage_start_date=date(2025, 1, 1),
+            assigned_bench="BENCH-H1",
+        )
+        event = HearingEvent("E-EV", "C-EV-DELAY", date(2025, 8, 1), HearingOutcome.HEARD)
+        # Days between 2025-01-01 and 2025-08-01 is 212 days (> 180)
+        self.manager.process_hearing_event(case, event)
+        self.assertIn("DELAY", case.flags)
+        self.assertIn("EVIDENCE_DELAY", case.flags)
+
+    def test_cost_payment_timing_and_flag(self):
+        """Adjournment cost assessment sets COST_PAYMENT_PENDING; payment clears it (BR-38)."""
+        case = Case(
+            case_id="C-COST",
+            case_type="CIVIL",
+            subject=SubjectType.CIVIL,
+            party_ids=["P1"],
+            filing_date=date(2026, 1, 1),
+            stage=CaseStage.PLEADINGS,
+            assigned_bench="BENCH-H1",
+            adjournment_history=[
+                HearingEvent("E1", "C-COST", date(2026, 2, 1), HearingOutcome.ADJOURNED, AdjournmentReason.PARTY_REQUEST, requesting_party="P1"),
+                HearingEvent("E2", "C-COST", date(2026, 3, 1), HearingOutcome.ADJOURNED, AdjournmentReason.PARTY_REQUEST, requesting_party="P1"),
+            ],
+        )
+        # 3rd party adjournment -> costs ₹2,000
+        e3 = HearingEvent(
+            "E3", "C-COST", date(2026, 4, 1), HearingOutcome.ADJOURNED,
+            AdjournmentReason.PARTY_REQUEST, requesting_party="P1", cost_paid=False,
+        )
+        self.manager.process_adjournment(case, e3)
+        self.assertEqual(case.costs_assessed, Decimal("2000.00"))
+        self.assertIn("COST_PAYMENT_PENDING", case.flags)
+
+        # Pay cost
+        self.manager.pay_adjournment_cost(case, Decimal("2000.00"))
+        self.assertEqual(case.costs_paid, Decimal("2000.00"))
+        self.assertNotIn("COST_PAYMENT_PENDING", case.flags)
+
+    def test_overdue_commercial_case_7_day_interval(self):
+        """Commercial cases past 12 months are scheduled every 7 days (BR-25)."""
+        old_comm = Case(
+            case_id="C-COMM-OLD",
+            case_type="COMMERCIAL_SUIT",
+            subject=SubjectType.COMMERCIAL,
+            party_ids=["CORP1", "CORP2"],
+            filing_date=date(2025, 1, 1),  # Over 365 days before 2026-10-29
+            assigned_bench="BENCH-H1",
+            stage=CaseStage.EVIDENCE,
+        )
+        event = HearingEvent(
+            "E-ADJ-COMM", "C-COMM-OLD", date(2026, 10, 29), HearingOutcome.ADJOURNED,
+            AdjournmentReason.PARTY_REQUEST, requesting_party="CORP1"
+        )
+        self.manager.process_adjournment(case=old_comm, event=event)
+        self.assertIn("COMMERCIAL_DISPOSAL_TARGET_OVERDUE", old_comm.flags)
+        # 7 days from Thursday 2026-10-29 is Thursday 2026-11-05
+        self.assertEqual(old_comm.next_hearing_date, date(2026, 11, 5))
+
+    def test_capacity_on_next_date_and_overboard_fallback(self):
+        """When capacity is full across window, falls back to Day 60 with OVERBOARD (BR-41, BR-42)."""
+        from_date = date(2026, 1, 1)
+        # Fill board for all days from day 14 to day 60
+        full_board = {}
+        for d in range(14, 61):
+            target = from_date + timedelta(days=d)
+            full_board[target] = 40  # capacity full
+
+        next_dt, is_overboard = calculate_next_hearing_date(
+            bench=self.bench,
+            from_date=from_date,
+            is_urgent=False,
+            holidays=self.holidays,
+            board_counts=full_board,
+        )
+        self.assertTrue(is_overboard)
+        self.assertEqual(next_dt, from_date + timedelta(days=60))
+
+    def test_multi_sitting_simulation(self):
+        """Simulate court proceedings across consecutive court sitting dates (BR-29 to BR-38)."""
+        case = Case(
+            case_id="C-SIM-01",
+            case_type="CIVIL_SUIT",
+            subject=SubjectType.CIVIL,
+            party_ids=["PA", "PB"],
+            filing_date=date(2026, 10, 1),
+            assigned_bench="BENCH-H1",
+            stage=CaseStage.PLEADINGS,
+        )
+        events = [
+            HearingEvent("EVT-S1", "C-SIM-01", date(2026, 10, 29), HearingOutcome.HEARD, new_stage=CaseStage.ISSUES),
+            HearingEvent("EVT-S2", "C-SIM-01", date(2026, 11, 12), HearingOutcome.ADJOURNED, AdjournmentReason.COURT_OCCASIONED),
+        ]
+        sittings = [date(2026, 10, 29), date(2026, 10, 30), date(2026, 11, 12)]
+
+        summaries, cause_lists = self.manager.simulate_sittings(
+            cases=[case],
+            events=events,
+            sitting_dates=sittings,
+        )
+        self.assertGreater(len(summaries), 0)
+        # Verify case progressed to ISSUES after 2026-10-29
+        self.assertEqual(case.stage, CaseStage.ISSUES)
 
 
 if __name__ == "__main__":

@@ -21,10 +21,14 @@ from models import (
     SubjectType,
 )
 from reporting import (
+    generate_all_case_diaries,
     generate_case_diary,
     generate_cause_list_report,
+    generate_evidence_delay_report,
     generate_execution_summary,
     generate_pendency_report,
+    generate_pendency_report_text,
+    generate_principal_judge_report,
 )
 
 
@@ -98,6 +102,64 @@ class TestReporting(unittest.TestCase):
         self.assertIn("10", summary)
         self.assertIn("8", summary)
         self.assertIn("2026-10-29", summary)
+
+    def test_evidence_delay_report(self):
+        """Generates evidence delay report for matters exceeding 180 days (BR-33)."""
+        c_delay = Case(
+            case_id="C-EV-01",
+            case_type="CIVIL_SUIT",
+            subject=SubjectType.CIVIL,
+            party_ids=["PA", "PB"],
+            filing_date=date(2025, 1, 1),
+            stage=CaseStage.EVIDENCE,
+            stage_start_date=date(2025, 1, 1),
+            assigned_bench="BENCH-CIVIL-01",
+        )
+        report_text, report_data = generate_evidence_delay_report([c_delay], as_of_date=date(2026, 10, 29))
+        self.assertEqual(report_data["total_delayed"], 1)
+        self.assertEqual(report_data["cases"][0]["case_id"], "C-EV-01")
+        self.assertIn("C-EV-01", report_text)
+        self.assertIn("BENCH-CIVIL-01", report_text)
+
+    def test_principal_judge_report(self):
+        """Generates administrative oversight report for the Principal District Judge."""
+        bench = Bench(
+            bench_id="BENCH-COMM-1",
+            subject_jurisdictions=[SubjectType.COMMERCIAL],
+            commercial_jurisdiction=True,
+            sitting_days=[0, 1, 2, 3, 4],
+            daily_board_capacity=40,
+        )
+        pj_text, pj_dict = generate_principal_judge_report(
+            cases=[self.case],
+            benches=[bench],
+            as_of_date=self.listing_date,
+        )
+        self.assertEqual(pj_dict["total_registered"], 1)
+        self.assertIn("PRINCIPAL DISTRICT JUDGE", pj_text)
+        self.assertIn("BENCH-COMM-1", pj_text)
+        self.assertIn("C-REP-01", pj_text)
+
+    def test_all_case_diaries_combined(self):
+        """Generates formatted combined case diaries for all cases (BR-50)."""
+        c2 = Case(
+            case_id="C-REP-02",
+            case_type="CIVIL_SUIT",
+            subject=SubjectType.CIVIL,
+            party_ids=["P1", "D1"],
+            filing_date=date(2026, 2, 1),
+        )
+        all_diaries = generate_all_case_diaries([self.case, c2])
+        self.assertIn("C-REP-01", all_diaries)
+        self.assertIn("C-REP-02", all_diaries)
+
+    def test_pendency_report_text_format(self):
+        """Generates formatted text version of pendency report (BR-51)."""
+        report_data = generate_pendency_report([self.case], as_of_date=self.listing_date)
+        text_rep = generate_pendency_report_text(report_data)
+        self.assertIn("DISTRICT COURT PENDENCY REPORT", text_rep)
+        self.assertIn("Total Pending: 1", text_rep)
+        self.assertIn("COMMERCIAL", text_rep)
 
 
 if __name__ == "__main__":

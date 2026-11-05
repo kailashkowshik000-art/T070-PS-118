@@ -303,6 +303,20 @@ def load_events(file_path: Path | str, known_cases: dict[str, Case] | None = Non
         mentioned_at = item.get("mentioned_at")
         notes = item.get("notes", "")
 
+        raw_cost = item.get("cost_assessed", "0")
+        cost_assessed = parse_decimal(raw_cost, f"{event_id}.cost_assessed")
+        cost_paid = bool(item.get("cost_paid", False))
+
+        raw_new_stage = item.get("new_stage")
+        new_stage = None
+        if raw_new_stage:
+            try:
+                new_stage = CaseStage(str(raw_new_stage).upper())
+            except ValueError:
+                raise ValidationError(f"Event '{event_id}' has invalid new_stage '{raw_new_stage}'.")
+
+        target_bench_id = item.get("target_bench_id")
+
         events.append(
             HearingEvent(
                 event_id=event_id,
@@ -314,6 +328,10 @@ def load_events(file_path: Path | str, known_cases: dict[str, Case] | None = Non
                 consent_indicator=consent_indicator,
                 mentioned_at=mentioned_at,
                 notes=notes,
+                cost_assessed=cost_assessed,
+                cost_paid=cost_paid,
+                new_stage=new_stage,
+                target_bench_id=target_bench_id,
             )
         )
 
@@ -398,3 +416,119 @@ def save_execution_summary(summary_text: str, output_path: Path | str) -> None:
 
     with open(path, "w", encoding="utf-8") as f:
         f.write(summary_text)
+
+
+def save_cause_lists_text(cause_lists_text: str, output_path: Path | str) -> None:
+    """Save formatted text cause lists to file (BR-49)."""
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(cause_lists_text)
+
+
+def save_case_diaries(
+    diaries_text: str,
+    cases: list[Case],
+    text_path: Path | str,
+    json_path: Path | str | None = None,
+) -> None:
+    """Save formatted case diaries and optional structured JSON (BR-50)."""
+    t_path = Path(text_path)
+    t_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(t_path, "w", encoding="utf-8") as f:
+        f.write(diaries_text)
+
+    if json_path:
+        j_path = Path(json_path)
+        j_path.parent.mkdir(parents=True, exist_ok=True)
+        diaries_data = []
+        for c in sorted(cases, key=lambda x: x.case_id):
+            diaries_data.append({
+                "case_id": c.case_id,
+                "case_type": c.case_type,
+                "subject": c.subject.value,
+                "parties": c.party_ids,
+                "filing_date": c.filing_date.isoformat(),
+                "claim_value": str(c.claim_value),
+                "court_fee_paid": str(c.court_fee_paid),
+                "status": c.status.value,
+                "stage": c.stage.value,
+                "assigned_bench": c.assigned_bench,
+                "next_hearing_date": c.next_hearing_date.isoformat() if c.next_hearing_date else None,
+                "transferred_count": c.transferred_count,
+                "costs_assessed": str(c.costs_assessed),
+                "costs_paid": str(c.costs_paid),
+                "flags": sorted(list(c.flags)),
+                "hearing_history": [
+                    {
+                        "event_id": e.event_id,
+                        "hearing_date": e.hearing_date.isoformat(),
+                        "outcome": e.outcome.value,
+                        "adjournment_reason": e.adjournment_reason.value if e.adjournment_reason else None,
+                        "requesting_party": e.requesting_party,
+                        "cost_assessed": str(e.cost_assessed),
+                        "cost_paid": e.cost_paid,
+                        "target_bench_id": e.target_bench_id,
+                        "notes": e.notes,
+                    }
+                    for e in c.adjournment_history
+                ],
+            })
+        with open(j_path, "w", encoding="utf-8") as f:
+            json.dump(diaries_data, f, indent=2)
+
+
+def save_evidence_delay_report(
+    report_text: str,
+    report_data: dict[str, Any],
+    text_path: Path | str,
+    json_path: Path | str,
+) -> None:
+    """Save evidence delay report in text and JSON formats (BR-33)."""
+    t_path = Path(text_path)
+    t_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(t_path, "w", encoding="utf-8") as f:
+        f.write(report_text)
+
+    j_path = Path(json_path)
+    j_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(j_path, "w", encoding="utf-8") as f:
+        json.dump(report_data, f, indent=2)
+
+
+def save_principal_judge_report(
+    report_text: str,
+    report_data: dict[str, Any],
+    text_path: Path | str,
+    json_path: Path | str,
+) -> None:
+    """Save comprehensive Principal District Judge report in text and JSON (BR-33, BR-51)."""
+    t_path = Path(text_path)
+    t_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(t_path, "w", encoding="utf-8") as f:
+        f.write(report_text)
+
+    j_path = Path(json_path)
+    j_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(j_path, "w", encoding="utf-8") as f:
+        json.dump(report_data, f, indent=2)
+
+
+def save_pendency_report(
+    report_text: str,
+    report_data: dict[str, Any],
+    text_path: Path | str,
+    json_path: Path | str,
+) -> None:
+    """Save pendency report in text and JSON formats (BR-51)."""
+    t_path = Path(text_path)
+    t_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(t_path, "w", encoding="utf-8") as f:
+        f.write(report_text)
+
+    j_path = Path(json_path)
+    j_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(j_path, "w", encoding="utf-8") as f:
+        json.dump(report_data, f, indent=2)

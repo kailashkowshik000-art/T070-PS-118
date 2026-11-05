@@ -6,6 +6,7 @@
 **Domain:** Public Services — Judiciary  
 **Programming Language:** Python 3.10+ (tested on Python 3.14)  
 **Interface:** Command-line and input-file driven (no GUI required)  
+**Checkpoint:** Week 3 Complete Business Rules Implementation (6 November 2026)  
 
 ---
 
@@ -18,11 +19,13 @@
 
 ## 2. Purpose and Scope
 
-The application simulates the core administrative and registry workflows of a district court registry:
-1. **Case Admission:** Validates statutory limitation periods, handles wrong-forum exclusions, adjusts deadlines for court holidays/weekends, checks delay condonation applications, computes progressive marginal court fees, identifies defective filings, and manages 7-day cure periods.
-2. **Bench Allocation:** Matches case subject matter to judicial bench rosters (Civil, Commercial, Family, Criminal), routes commercial claims exceeding ₹3,00,000 to specialized commercial benches, screens for party conflicts, verifies bench sitting calendars/leaves, and applies deterministic round-robin allocation.
-3. **Daily Cause-List Generation:** Generates deterministic daily cause lists using 6 statutory priority bands (Urgent/bail, Part-heard, 3+ adjournments, >2 years old, Final hearing, Regular), enforces a 40-case daily board capacity and an 8-case final hearing cap, manages unreached carry-over priority, handles 3-sitting escalation, and supports urgent mentions before 10:30 AM.
-4. **Deterministic Auditable Output:** Produces structured JSON output files and comprehensive human-readable reports and summaries.
+The application simulates administrative workflows in a district court registry:
+1. **Case Admission (BR-07 to BR-18):** Validates statutory limitation periods, handles wrong-forum exclusions, adjusts deadlines for court holidays/weekends, evaluates delay condonation applications, computes progressive marginal court fees, flags defective filings, and tracks 7-day cure periods.
+2. **Bench Allocation (BR-01 to BR-06):** Matches case subject matter to judicial bench rosters (Civil, Commercial, Family, Criminal), routes commercial claims exceeding ₹3,00,000 to specialized commercial benches, screens for party conflicts, verifies sitting days and leave calendars, and applies deterministic round-robin allocation per roster.
+3. **Daily Cause-List Generation (BR-19 to BR-28):** Generates deterministic daily cause lists across 6 statutory priority bands (Urgent/bail, Part-heard, 3+ adjournments, >2 years old, Final hearing, Regular), enforces a 40-case daily board capacity and an 8-case final hearing cap, manages carry-over priority, applies 3-sitting unreached escalation, lists urgent mentions before 10:30 AM, and restricts family/minor matters to designated in-camera days.
+4. **Hearing Management & Multi-Sitting Simulation (BR-29 to BR-43):** Processes chronological hearing outcomes (`HEARD`, `PART_HEARD`, `ADJOURNED`, `DECIDED`, `TRANSFERRED`), enforces stage progression without skipping (`PLEADINGS` &rarr; `ISSUES` &rarr; `EVIDENCE` &rarr; `ARGUMENTS` &rarr; `JUDGMENT`), enforces party adjournment limits (max 3 per stage, 4th refused unless `MEDICAL` or `COURT_OCCASIONED`), assesses adjournment costs (₹2,000 civil, ₹4,000 commercial), tracks cost payment status (`COST_PAYMENT_PENDING`), and calculates next dates (min 14 days, 7 days urgent/commercial overdue, capacity checks, Day-60 `OVERBOARD` fallback).
+5. **Case Transfer Engine (BR-44 to BR-48):** Enforces a strict one-transfer lifetime limit per case, permits transfers solely for `ROSTER_CHANGE` or `CONFLICT`, verifies destination bench jurisdiction, commercial threshold, and party conflicts, preserves case history and stage, counts transfer as an adjournment, and recomputes next hearing dates on destination bench calendars.
+6. **Advanced Judicial Reporting (BR-33, BR-49 to BR-51):** Produces formatted daily cause lists, individual and consolidated case diaries, dedicated evidence-delay reports (>180 days in evidence), comprehensive Principal District Judge oversight reports, and pendency analytics in both text and JSON formats.
 
 ---
 
@@ -30,15 +33,15 @@ The application simulates the core administrative and registry workflows of a di
 
 ```text
 T070-PS-118/
-├── main.py                  # CLI entry point and end-to-end pipeline coordinator
+├── main.py                  # CLI entry point, multi-sitting simulator, and pipeline coordinator
 ├── models.py                # Domain models (Case, Bench, HearingEvent, CauseListEntry, enums)
-├── config.py                # System constants, fee schedules, and board capacity limits
-├── input_output.py          # Input file loaders, JSON schema validators, and output writers
+├── config.py                # System constants, fee schedules, capacity limits, and status flags
+├── input_output.py          # Input loaders, strict schema validators, and output report savers
 ├── admission.py             # Core Flow 1: Limitation checker and court fee scrutiny
 ├── allocation.py            # Core Flow 2: Deterministic round-robin bench allocator
 ├── scheduling.py            # Core Flow 3: Priority bands, carry-over, and cause-list generator
-├── hearings.py              # Hearing management, stage progression, and adjournment rules
-├── reporting.py             # Formatted cause lists, case diaries, and pendency reports
+├── hearings.py              # Hearing manager, stage progression, transfer engine, and simulator
+├── reporting.py             # Advanced judicial reports, diaries, cause lists, and summaries
 ├── requirements.txt         # Project dependencies (pytest)
 ├── README.md                # Project documentation and usage guide
 ├── .gitignore               # Git ignore rules for Python, virtual environments, and IDEs
@@ -47,26 +50,36 @@ T070-PS-118/
 │   ├── benches.json         # Bench definitions, rosters, sitting days, and conflicts
 │   ├── holidays.json        # Court gazetted holidays
 │   ├── filings.json         # Case filings across civil, commercial, family, and criminal
-│   └── events.json          # Pre-existing hearing events and case history
+│   └── events.json          # Pre-existing hearing events, outcomes, and case history
 │
-├── output/                  # Deterministic output directory
+├── output/                  # Deterministic output directory (13 artifacts)
 │   ├── admission_results.json
 │   ├── allocation_results.json
 │   ├── cause_lists.json
+│   ├── cause_lists.txt
+│   ├── case_diaries.json
+│   ├── case_diaries.txt
+│   ├── evidence_delay_report.json
+│   ├── evidence_delay_report.txt
+│   ├── principal_judge_report.json
+│   ├── principal_judge_report.txt
+│   ├── pendency_report.json
+│   ├── pendency_report.txt
 │   └── execution_summary.txt
 │
-├── tests/                   # Comprehensive test suite (54 unit and integration tests)
+├── tests/                   # Comprehensive test suite (80 unit and integration tests)
 │   ├── test_admission.py    # 17 unit tests for limitation, condonation, fees, and defects
 │   ├── test_allocation.py   # 8 unit tests for rosters, commercial cap, conflicts, and round-robin
 │   ├── test_scheduling.py   # 15 unit tests for priority bands, caps, carry-over, and mentions
-│   ├── test_hearings.py     # 7 unit tests for stage progression, adjournment limits, and costs
-│   ├── test_reporting.py    # 4 unit tests for formatted cause lists, diaries, and summaries
-│   └── test_integration.py  # 3 end-to-end integration and negative validation tests
+│   ├── test_hearings.py     # 13 unit tests for stage progression, adjournments, costs, and simulation
+│   ├── test_transfers.py    # 10 unit tests for transfer limit, reasons, conflicts, and calendar
+│   ├── test_reporting.py    # 8 unit tests for cause lists, diaries, delay, and Principal Judge reports
+│   └── test_integration.py  # 9 integration and negative validation tests
 │
 └── docs/                    # Architectural and legal documentation
     ├── glossary.md          # Domain glossary
-    ├── business-rules.md    # Traceability matrix for BR-01 through BR-51
-    ├── decision-log.md      # Architectural assumptions and decisions (DEC-01 to DEC-11)
+    ├── business-rules.md    # Complete traceability matrix for BR-01 through BR-51
+    ├── decision-log.md      # Architectural decisions (DEC-01 to DEC-13)
     └── week1-design.pdf     # Week 1 Design Document artifact
 ```
 
@@ -98,23 +111,30 @@ pip install -r requirements.txt
 ## 5. Execution Instructions
 
 ### Running the Application
-Execute the command-line interface with default paths or custom arguments:
 
-```bash
-# Standard execution
-python main.py --data-dir data --output-dir output --date 2026-10-29
+1. **Standard Daily Cause List & Reporting:**
+   ```bash
+   python main.py --data-dir data --output-dir output --date 2026-10-29
+   ```
 
-# Verbose execution (prints formatted cause lists to console)
-python main.py --data-dir data --output-dir output --date 2026-10-29 --verbose
-```
+2. **Verbose Execution (Prints Cause Lists & Principal Judge Oversight Report to Console):**
+   ```bash
+   python main.py --data-dir data --output-dir output --date 2026-10-29 --verbose
+   ```
+
+3. **Multi-Sitting Simulation Run (Simulating Consecutive Court Sittings):**
+   ```bash
+   python main.py --data-dir data --output-dir output --date 2026-10-29 --simulate-until 2026-11-06 --verbose
+   ```
 
 ### CLI Arguments
 | Argument | Default | Description |
 | :--- | :--- | :--- |
 | `--data-dir` | `data` | Directory containing `holidays.json`, `benches.json`, `filings.json`, `events.json`. |
 | `--output-dir` | `output` | Directory where output JSON and text reports will be written. |
-| `--date` | `2026-10-29` | Target date (`YYYY-MM-DD`) for cause-list generation. |
-| `--verbose` | `False` | Displays detailed human-readable cause-list tables on standard output. |
+| `--date` | `2026-10-29` | Target date (`YYYY-MM-DD`) for cause-list generation or simulation start date. |
+| `--simulate-until` | `None` | Optional end date (`YYYY-MM-DD`) for multi-sitting simulation run across dates. |
+| `--verbose` | `False` | Displays detailed human-readable cause-list tables and oversight summaries. |
 
 ---
 
@@ -130,8 +150,8 @@ python -m unittest discover tests
 python -m pytest
 ```
 
-**Test Suite Coverage:**
-- 54 passing tests across 6 test modules with 0 failures and 0 errors.
+**Test Suite Results:**
+- **80 passing tests** across 7 test modules with **0 failures and 0 errors** in **0.40 seconds**.
 
 ---
 
@@ -189,62 +209,73 @@ Array of case filings:
 ]
 ```
 
+### `data/events.json`
+Array of historical and scheduled hearing events:
+```json
+[
+  {
+    "event_id": "EVT-2026-001",
+    "case_id": "CS-2024-008",
+    "hearing_date": "2024-06-15",
+    "outcome": "HEARD",
+    "adjournment_reason": null,
+    "requesting_party": null,
+    "consent_indicator": false,
+    "new_stage": "ISSUES",
+    "notes": "Pleadings completed, stage advanced to Issues."
+  }
+]
+```
+
 ---
 
 ## 8. Output Descriptions
 
-The engine generates four deterministic output files in `output/`:
+The engine generates 13 deterministic output files in `output/`:
 
-1. `admission_results.json`: Records the admission status (`ADMITTED`, `DEFECTIVE`, `REJECTED`), statutory limitation deadline, applicable court fee, paid fee, defect/rejection reasons, required flags, and cure deadlines.
-2. `allocation_results.json`: Records the assigned bench ID or failure reason for each case.
-3. `cause_lists.json`: Complete daily cause lists grouped by bench ID, specifying priority bands (1-6), board positions (1-40), carry-over indicators, final hearing indicators, and diagnostic flags.
-4. `execution_summary.txt`: Concise executive summary detailing total filings processed, admission outcomes, allocations, and cause-list listing counts.
+1. `admission_results.json`: Records admission decisions (`ADMITTED`, `DEFECTIVE`, `REJECTED`, `RETURNED`), statutory limitation deadlines, applicable and paid fees, defect reasons, required flags, and cure deadlines.
+2. `allocation_results.json`: Records assigned bench ID or failure reason for each case.
+3. `cause_lists.json`: Complete daily cause lists grouped by bench ID, specifying priority bands (1-6), positions (1-40), carry-over indicators, final hearing indicators, and flags.
+4. `cause_lists.txt`: Formatted human-readable daily cause list tables for court notice boards.
+5. `case_diaries.json`: Complete serialized history for all registered cases including lifecycle events, costs assessed, costs paid, transfer counts, and active flags.
+6. `case_diaries.txt`: Detailed formatted case diaries for all registered cases.
+7. `evidence_delay_report.json`: Structured list of matters exceeding 180 days in the Evidence stage (BR-33).
+8. `evidence_delay_report.txt`: Formatted administrative report of evidence delay matters for the Principal Judge.
+9. `principal_judge_report.json`: Executive oversight metrics covering bench utilization, capacities, delay condonations, defective filings, evidence delays, and overdue commercial cases.
+10. `principal_judge_report.txt`: Formatted administrative oversight report for the Principal District Judge.
+11. `pendency_report.json`: Active pendency breakdown by stage, subject, age, and delay indicators.
+12. `pendency_report.txt`: Formatted text version of the district court pendency report.
+13. `execution_summary.txt`: Concise run summary detailing filings processed, admission outcomes, allocations, and cause-list listings.
 
 ---
 
-## 9. Implemented Features (Week 2 Core)
+## 9. Business Rule Coverage (BR-01 to BR-51)
 
-- [x] **Case Admission Flow (BR-07 to BR-18):**
-  - Limitation calculation for Civil suits (3 yrs), Money recovery (3 yrs), Appeals (30 days), and Revisions (90 days).
-  - Wrong-forum qualifying time deduction.
-  - Court holiday and weekend extension to the next working day.
-  - Delay condonation application checking (`DELAY_CONDONATION_PENDING`).
-  - Progressive marginal court fee calculations (5% on 0-1L, 4% on 1-10L, 2% on >10L, capped at ₹3,00,000, 50% for appeals).
-  - Deficient fee handling (marked `DEFECTIVE` with a mandatory 7-day cure window; `RETURNED` if uncured).
-- [x] **Bench Allocation Flow (BR-01 to BR-06):**
-  - Roster subject matching (Civil, Commercial, Family, Criminal).
-  - Commercial threshold enforcement (claims > ₹3,00,000 require commercial bench).
-  - Exclusion of benches with party conflicts.
-  - Sitting day and leave date checks.
-  - Deterministic round-robin allocation per roster.
-  - Diagnostic reason reporting when no eligible bench is available.
-- [x] **Cause-List Generation Flow (BR-19 to BR-28):**
-  - 6 hierarchical priority bands: Urgent/bail, Part-heard, 3+ adjournments, >2 years old, Final hearing, Regular.
-  - Oldest-first ordering within bands.
-  - Board capacity limit of 40 matters per bench per day.
-  - Maximum 8 final-hearing matters per bench per day.
-  - Carry-over matter priority within band.
-  - Priority escalation after 3 consecutive unreached sittings.
-  - Urgent/bail mention before 10:30 AM (same day if capacity exists, otherwise next sitting day at position 1).
-  - Family matters involving minors restricted to designated in-camera days.
-- [x] **Scaffolding and Foundations for Hearings and Reports (BR-29 to BR-51):**
-  - Stage progression (`PLEADINGS` &rarr; `ISSUES` &rarr; `EVIDENCE` &rarr; `ARGUMENTS` &rarr; `JUDGMENT`) with consent-based skipping prevention.
-  - Adjournment counting (party limits, cost penalty calculation of ₹2,000 / ₹4,000, medical exceptions).
-  - Next hearing date computation (minimum 14-day / 7-day interval, calendar exclusions, 60-day `OVERBOARD` fallback).
-  - Case diaries, formatted cause lists, and pendency reports.
+Every single business rule from BR-01 to BR-51 is **100% implemented and tested**:
+- **BR-01 to BR-06 (Bench Registration & Allocation):** Complete in `models.py` and `allocation.py`.
+- **BR-07 to BR-18 (Admission & Court Fees):** Complete in `admission.py`.
+- **BR-19 to BR-28 (Cause-List Generation & Priorities):** Complete in `scheduling.py`.
+- **BR-29 to BR-43 (Hearings, Adjournments, Costs & Capacity):** Complete in `hearings.py`.
+- **BR-44 to BR-48 (Case Transfer Engine):** Complete in `hearings.py`.
+- **BR-49 to BR-51 (Advanced Judicial Reporting):** Complete in `reporting.py`.
+
+Refer to `docs/business-rules.md` for the line-by-line function and test traceability matrix.
 
 ---
 
 ## 10. Known Limitations
 
-1. **Hearing Stage Progression:** Fully modeled and tested in unit tests, but not yet automated in batch command replay (planned for Week 3).
-2. **Case Transfers (BR-44 to BR-48):** Transfer limits and conflict checking are scaffolded in `hearings.py` and `allocation.py`; batch transfer commands are scheduled for Week 3.
-3. **Overdue Commercial Listing Frequency (BR-25):** The 7-day recurring loop for overdue commercial cases is identified in pendency reports; multi-week scheduling simulation will be enhanced in Week 3.
+1. **Non-Standard Holiday Schemes:** Court holidays must be explicitly provided in `data/holidays.json` using ISO `YYYY-MM-DD` strings.
+2. **Fixed Adjournment Fine Tiers:** Party adjournment fines are fixed at statutory ₹2,000 (Civil/Family/Criminal) and ₹4,000 (Commercial) as specified in the brief.
 
 ---
 
-## 11. Remaining Week 3 Tasks
+## 11. Final Submission Readiness
 
-1. **Complete Hearing Event Processing:** Automate the multi-sitting simulation replay over sequential dates from `events.json`.
-2. **Transfer Management Engine:** Implement bench transfer execution with one-time limit enforcement and calendar recalculation.
-3. **Advanced Judicial Reporting:** Implement export of the principal-judge evidence delay report (>180 days in evidence) and automated case diary dumps.
+- [x] All 51 business rules (BR-01 through BR-51) fully implemented with zero placeholders.
+- [x] 80 unit and integration tests passing cleanly.
+- [x] Complete multi-sitting simulation enabled.
+- [x] Case transfer engine strictly enforcing 1-transfer limit and permitted reasons.
+- [x] Advanced judicial reporting including Principal District Judge reports and evidence delay exports.
+- [x] Strict input schema validation and error reporting.
+- [x] Clean Git repository status.

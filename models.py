@@ -87,6 +87,10 @@ class HearingEvent:
     consent_indicator: bool = False
     mentioned_at: str | None = None
     notes: str = ""
+    cost_assessed: Decimal = Decimal("0")
+    cost_paid: bool = False
+    new_stage: CaseStage | None = None
+    target_bench_id: str | None = None
 
 
 @dataclass
@@ -117,6 +121,8 @@ class Case:
     is_part_heard: bool = False
     stage_start_date: date | None = None
     transferred_count: int = 0
+    costs_assessed: Decimal = Decimal("0")
+    costs_paid: Decimal = Decimal("0")
 
     @property
     def is_appeal(self) -> bool:
@@ -169,3 +175,25 @@ class AllocationResult:
     allocated_bench_id: str | None
     success: bool
     reason: str | None = None
+
+
+@dataclass
+class TransferResult:
+    case_id: str
+    from_bench_id: str | None
+    to_bench_id: str | None
+    success: bool
+    reason: str
+    next_hearing_date: date | None = None
+
+
+@dataclass
+class SittingSimulationSummary:
+    sitting_date: date
+    bench_id: str
+    matters_listed: int
+    events_processed: int
+    matters_heard: int
+    matters_adjourned: int
+    matters_decided: int
+    matters_transferred: int

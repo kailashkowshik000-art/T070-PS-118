@@ -13,6 +13,7 @@ import sys
 
 from admission import process_admission
 from allocation import BenchAllocator
+from hearings import HearingManager
 from input_output import (
     load_benches,
     load_events,
@@ -20,8 +21,13 @@ from input_output import (
     load_holidays,
     save_admission_results,
     save_allocation_results,
+    save_case_diaries,
     save_cause_lists,
+    save_cause_lists_text,
+    save_evidence_delay_report,
     save_execution_summary,
+    save_pendency_report,
+    save_principal_judge_report,
     ValidationError,
 )
 from models import (
@@ -31,8 +37,13 @@ from models import (
     CaseStatus,
 )
 from reporting import (
+    generate_all_case_diaries,
     generate_cause_list_report,
+    generate_evidence_delay_report,
     generate_execution_summary,
+    generate_pendency_report,
+    generate_pendency_report_text,
+    generate_principal_judge_report,
 )
 from scheduling import generate_cause_list
 
@@ -61,6 +72,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Target date for cause-list generation in YYYY-MM-DD format",
     )
     parser.add_argument(
+        "--simulate-until",
+        type=str,
+        default=None,
+        help="Optional end date (YYYY-MM-DD) for multi-sitting simulation run",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print detailed cause lists and diaries to standard output",
@@ -72,6 +89,7 @@ def run_pipeline(
     data_dir: Path | str,
     output_dir: Path | str,
     listing_date: date,
+    simulate_until: date | None = None,
     verbose: bool = False,
 ) -> int:
     """Execute the end-to-end court registry pipeline."""
@@ -96,9 +114,7 @@ def run_pipeline(
         cases_by_id = {c.case_id: c for c in cases}
         events = load_events(events_file, known_cases=cases_by_id)
 
-        # Attach events to case histories
-        for event in events:
-            cases_by_id[event.case_id].adjournment_history.append(event)
+        hearing_manager = HearingManager(benches=benches, holidays=holidays)
 
         # 3. Process Admission
         admission_results: list[AdmissionResult] = []
@@ -133,25 +149,71 @@ def run_pipeline(
         # Sort allocation results deterministically
         allocation_results.sort(key=lambda a: a.case_id)
 
-        # 5. Cause-List Generation
+        # 5. Process Hearing Events & Generate Cause Lists
         cause_lists: dict[str, list] = {}
         total_listed = 0
 
-        for bench in benches:
-            cl_entries, _ = generate_cause_list(
-                bench=bench,
+        if simulate_until and simulate_until >= listing_date:
+            # Multi-sitting simulation
+            from datetime import timedelta
+            sitting_dates = [listing_date + timedelta(days=i) for i in range((simulate_until - listing_date).days + 1)]
+            sim_summaries, cause_lists = hearing_manager.simulate_sittings(
                 cases=admitted_cases,
-                listing_date=listing_date,
+                events=events,
+                sitting_dates=sitting_dates,
             )
-            cause_lists[bench.bench_id] = cl_entries
-            total_listed += len(cl_entries)
+            total_listed = sum(len(entries) for entries in cause_lists.values())
+        else:
+            # Standard single sitting listing
+            # Process prior historical events up to listing date
+            for event in sorted(events, key=lambda e: e.hearing_date):
+                if event.hearing_date <= listing_date:
+                    c = cases_by_id.get(event.case_id)
+                    if c:
+                        hearing_manager.process_hearing_event(c, event)
 
-        # 6. Save Outputs
+            for bench in benches:
+                cl_entries, _ = generate_cause_list(
+                    bench=bench,
+                    cases=admitted_cases,
+                    listing_date=listing_date,
+                )
+                cause_lists[bench.bench_id] = cl_entries
+                total_listed += len(cl_entries)
+
+        # 6. Generate All Reports (BR-33, BR-49, BR-50, BR-51)
         output_path.mkdir(parents=True, exist_ok=True)
+
+        # A. Admission & Allocation results
         save_admission_results(admission_results, output_path / "admission_results.json")
         save_allocation_results(allocation_results, output_path / "allocation_results.json")
-        save_cause_lists(cause_lists, output_path / "cause_lists.json")
 
+        # B. Cause Lists (JSON + Formatted Text) (BR-49)
+        save_cause_lists(cause_lists, output_path / "cause_lists.json")
+        cause_lists_text_blocks = []
+        for b_id, entries in cause_lists.items():
+            if entries:
+                cause_lists_text_blocks.append(generate_cause_list_report(b_id, listing_date, entries))
+        save_cause_lists_text("\n\n".join(cause_lists_text_blocks), output_path / "cause_lists.txt")
+
+        # C. Case Diaries (BR-50)
+        diaries_text = generate_all_case_diaries(cases)
+        save_case_diaries(diaries_text, cases, output_path / "case_diaries.txt", output_path / "case_diaries.json")
+
+        # D. Evidence Delay Report (BR-33)
+        ev_text, ev_dict = generate_evidence_delay_report(cases, as_of_date=listing_date)
+        save_evidence_delay_report(ev_text, ev_dict, output_path / "evidence_delay_report.txt", output_path / "evidence_delay_report.json")
+
+        # E. Principal District Judge Report (BR-33, BR-51)
+        pj_text, pj_dict = generate_principal_judge_report(cases, benches, as_of_date=listing_date, cause_lists=cause_lists)
+        save_principal_judge_report(pj_text, pj_dict, output_path / "principal_judge_report.txt", output_path / "principal_judge_report.json")
+
+        # F. Pendency Report (BR-51)
+        pend_dict = generate_pendency_report(cases, as_of_date=listing_date)
+        pend_text = generate_pendency_report_text(pend_dict)
+        save_pendency_report(pend_text, pend_dict, output_path / "pendency_report.txt", output_path / "pendency_report.json")
+
+        # G. Execution Summary
         summary_text = generate_execution_summary(
             run_date=listing_date,
             filings_count=len(cases),
@@ -171,6 +233,7 @@ def run_pipeline(
             for bench_id, entries in cause_lists.items():
                 if entries:
                     print(generate_cause_list_report(bench_id, listing_date, entries))
+            print("\n" + pj_text)
 
         return 0
 
@@ -190,10 +253,19 @@ def main() -> None:
         sys.stderr.write(f"Error: Invalid date format '{args.date}'. Expected YYYY-MM-DD.\n")
         sys.exit(1)
 
+    sim_until = None
+    if args.simulate_until:
+        try:
+            sim_until = datetime.strptime(args.simulate_until, "%Y-%m-%d").date()
+        except ValueError:
+            sys.stderr.write(f"Error: Invalid simulate-until date format '{args.simulate_until}'. Expected YYYY-MM-DD.\n")
+            sys.exit(1)
+
     exit_code = run_pipeline(
         data_dir=args.data_dir,
         output_dir=args.output_dir,
         listing_date=target_date,
+        simulate_until=sim_until,
         verbose=args.verbose,
     )
     sys.exit(exit_code)

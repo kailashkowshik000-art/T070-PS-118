@@ -56,3 +56,5 @@ Desktop.ini
 .DS_Store
 
 # Temporary outputs (keep directory structure with .gitkeep if desired)
+output/*
+!output/.gitkeep
