@@ -193,7 +193,9 @@ def run_pipeline(
         cause_lists_text_blocks = []
         for b_id, entries in cause_lists.items():
             if entries:
-                cause_lists_text_blocks.append(generate_cause_list_report(b_id, listing_date, entries))
+                actual_date = entries[0].listing_date
+                actual_bench = entries[0].bench_id
+                cause_lists_text_blocks.append(generate_cause_list_report(actual_bench, actual_date, entries))
         save_cause_lists_text("\n\n".join(cause_lists_text_blocks), output_path / "cause_lists.txt")
 
         # C. Case Diaries (BR-50)
@@ -232,7 +234,9 @@ def run_pipeline(
             print("\nDetailed Cause Lists:")
             for bench_id, entries in cause_lists.items():
                 if entries:
-                    print(generate_cause_list_report(bench_id, listing_date, entries))
+                    actual_date = entries[0].listing_date
+                    actual_bench = entries[0].bench_id
+                    print(generate_cause_list_report(actual_bench, actual_date, entries))
             print("\n" + pj_text)
 
         return 0

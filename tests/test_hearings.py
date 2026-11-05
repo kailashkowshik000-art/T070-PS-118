@@ -28,6 +28,7 @@ from hearings import (
     calculate_next_hearing_date,
     HearingManager,
 )
+from reporting import generate_cause_list_report
 
 
 class TestHearingManagement(unittest.TestCase):
@@ -358,6 +359,98 @@ class TestHearingManagement(unittest.TestCase):
         self.assertGreater(len(summaries), 0)
         # Verify case progressed to ISSUES after 2026-10-29
         self.assertEqual(case.stage, CaseStage.ISSUES)
+
+    def test_multi_sitting_consecutive_dates_cause_list_and_date_integrity(self):
+        """Verify that multi-sitting simulation generates correct sitting dates and reports without date drift."""
+        c1 = Case("C-CONSEC-1", "CIVIL", SubjectType.CIVIL, ["P1"], date(2026, 10, 1), assigned_bench="BENCH-H1")
+        c2 = Case("C-CONSEC-2", "CIVIL", SubjectType.CIVIL, ["P2"], date(2026, 10, 2), assigned_bench="BENCH-H1")
+
+        date1 = date(2026, 11, 5)  # Thursday
+        date2 = date(2026, 11, 6)  # Friday
+
+        # C1 is adjourned on date1 to next date
+        events = [
+            HearingEvent("EVT-ADJ-D1", "C-CONSEC-1", date1, HearingOutcome.ADJOURNED, AdjournmentReason.COURT_OCCASIONED),
+        ]
+
+        summaries, cause_lists = self.manager.simulate_sittings(
+            cases=[c1, c2],
+            events=events,
+            sitting_dates=[date1, date2],
+        )
+
+        key1 = f"BENCH-H1_{date1.isoformat()}"
+        key2 = f"BENCH-H1_{date2.isoformat()}"
+
+        self.assertIn(key1, cause_lists)
+        self.assertIn(key2, cause_lists)
+
+        # Date 1 cause list entries must strictly have listing_date == date1
+        entries_d1 = cause_lists[key1]
+        for e in entries_d1:
+            self.assertEqual(e.listing_date, date1)
+
+        # Date 2 cause list entries must strictly have listing_date == date2
+        entries_d2 = cause_lists[key2]
+        for e in entries_d2:
+            self.assertEqual(e.listing_date, date2)
+
+        # Formatted report for date 2 block must show Sitting Date: 2026-11-06, NOT 2026-11-05
+        rep_text_d2 = generate_cause_list_report(key2, date1, entries_d2)
+        self.assertIn("Sitting Date: 2026-11-06", rep_text_d2)
+        self.assertIn("DISTRICT COURT CAUSE LIST - BENCH: BENCH-H1", rep_text_d2)
+        self.assertNotIn("BENCH-H1_2026-11-06", rep_text_d2)  # Bench heading clean
+
+    def test_multi_sitting_skips_holidays_and_weekends(self):
+        """Simulation strictly excludes weekends, court holidays, and bench leave days from cause lists."""
+        case = Case("C-HOL-TEST", "CIVIL", SubjectType.CIVIL, ["P"], date(2026, 10, 1), assigned_bench="BENCH-H1")
+
+        # Range spans Friday 2026-11-06 to Monday 2026-11-09
+        # Saturday: 2026-11-07 (weekend)
+        # Sunday: 2026-11-08 (weekend + holiday in self.holidays)
+        # Friday 2026-11-13 is bench leave
+        dates = [
+            date(2026, 11, 6),
+            date(2026, 11, 7),
+            date(2026, 11, 8),
+            date(2026, 11, 9),
+            date(2026, 11, 13),  # Leave date
+        ]
+
+        summaries, cause_lists = self.manager.simulate_sittings(
+            cases=[case],
+            events=[],
+            sitting_dates=dates,
+        )
+
+        sitting_keys = list(cause_lists.keys())
+        self.assertIn("BENCH-H1_2026-11-06", sitting_keys)
+        self.assertNotIn("BENCH-H1_2026-11-07", sitting_keys)  # Saturday skipped
+        self.assertNotIn("BENCH-H1_2026-11-08", sitting_keys)  # Sunday holiday skipped
+        self.assertIn("BENCH-H1_2026-11-09", sitting_keys)
+        self.assertNotIn("BENCH-H1_2026-11-13", sitting_keys)  # Bench leave skipped
+
+    def test_day_60_fallback_skips_weekend_and_holiday(self):
+        """When 60-day fallback falls on a weekend or holiday, it extends to next eligible sitting day."""
+        # Pick from_date such that from_date + 60 days falls on Saturday
+        # E.g. 2026-09-08 (Tuesday) + 60 days = 2026-11-07 (Saturday)
+        # Sunday 2026-11-08 is holiday
+        # Next working day is Monday 2026-11-09
+        from_date = date(2026, 9, 8)
+        # Make board full for all days in window
+        full_board = {from_date + timedelta(days=d): 40 for d in range(14, 61)}
+
+        next_dt, is_overboard = calculate_next_hearing_date(
+            bench=self.bench,
+            from_date=from_date,
+            is_urgent=False,
+            holidays=self.holidays,
+            board_counts=full_board,
+        )
+        self.assertTrue(is_overboard)
+        # 60 days is Saturday 2026-11-07 -> Sunday 2026-11-08 is holiday -> Monday 2026-11-09
+        self.assertEqual(next_dt, date(2026, 11, 9))
+        self.assertEqual(next_dt.weekday(), 0)  # Monday
 
 
 if __name__ == "__main__":

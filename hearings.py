@@ -90,12 +90,20 @@ def calculate_next_hearing_date(
             and current not in holiday_set
         ):
             # Check capacity (BR-41)
-            if board.get(current, 0) < bench.daily_board_capacity:
+            count = board.get((bench.bench_id, current), board.get(current, 0))
+            if count < bench.daily_board_capacity:
                 return current, False
         current += timedelta(days=1)
 
-    # Day 60 fallback (BR-42)
-    return max_date, True
+    # Day 60 fallback (BR-42): Anchor on Day 60, adjust to next sitting day if on holiday/weekend
+    fallback = max_date
+    while (
+        fallback.weekday() not in bench.sitting_days
+        or fallback in bench.leave_dates
+        or fallback in holiday_set
+    ):
+        fallback += timedelta(days=1)
+    return fallback, True
 
 
 class HearingManager:
@@ -228,6 +236,9 @@ class HearingManager:
                 board_counts=board_counts,
             )
             case.next_hearing_date = next_date
+            if board_counts is not None:
+                board_counts[(bench.bench_id, next_date)] = board_counts.get((bench.bench_id, next_date), 0) + 1
+                board_counts[next_date] = board_counts.get(next_date, 0) + 1
             if is_overboard:
                 case.flags.add(FLAG_OVERBOARD)
 
@@ -364,6 +375,9 @@ class HearingManager:
             board_counts=board_counts,
         )
         case.next_hearing_date = next_date
+        if board_counts is not None:
+            board_counts[(dest_bench.bench_id, next_date)] = board_counts.get((dest_bench.bench_id, next_date), 0) + 1
+            board_counts[next_date] = board_counts.get(next_date, 0) + 1
         if is_overboard:
             case.flags.add(FLAG_OVERBOARD)
 
@@ -505,6 +519,7 @@ class HearingManager:
                 key = f"{bench_id}_{sit_date.isoformat()}"
                 all_cause_lists[key] = cl_entries
 
+                board_counts[(bench_id, sit_date)] = len(cl_entries)
                 board_counts[sit_date] = board_counts.get(sit_date, 0) + len(cl_entries)
 
                 events_proc = 0

@@ -290,6 +290,50 @@ class TestEndToEndIntegration(unittest.TestCase):
             load_filings(bad_file)
         self.assertIn("Invalid date format", str(ctx.exception))
 
+    def test_multi_sitting_json_and_text_reports_agree(self):
+        """Verifies that cause_lists.json and cause_lists.txt agree exactly on bench IDs and sitting dates."""
+        from main import run_pipeline
+
+        out_dir = self.test_dir / "sim_match_out"
+        code = run_pipeline(
+            data_dir=self.data_dir,
+            output_dir=out_dir,
+            listing_date=date(2026, 11, 5),
+            simulate_until=date(2026, 11, 6),
+            verbose=False,
+        )
+        self.assertEqual(code, 0)
+
+        # 1. Read JSON
+        json_path = out_dir / "cause_lists.json"
+        with open(json_path, "r", encoding="utf-8") as f:
+            cl_json = json.load(f)
+
+        # 2. Read Text
+        txt_path = out_dir / "cause_lists.txt"
+        with open(txt_path, "r", encoding="utf-8") as f:
+            txt_content = f.read()
+
+        # Check that 2026-11-05 and 2026-11-06 blocks exist in text
+        self.assertIn("Sitting Date: 2026-11-05", txt_content)
+        self.assertIn("Sitting Date: 2026-11-06", txt_content)
+
+        # Verify that for every bench and sitting date in JSON, the text contains the exact matching bench and date header
+        for key, entries in cl_json.items():
+            if entries:
+                sit_dt = entries[0]["listing_date"]
+                bench = entries[0]["bench_id"]
+
+                expected_bench_header = f"DISTRICT COURT CAUSE LIST - BENCH: {bench}"
+                expected_date_header = f"Sitting Date: {sit_dt}"
+
+                self.assertIn(expected_bench_header, txt_content)
+                self.assertIn(expected_date_header, txt_content)
+
+                # Ensure every case listed in JSON is present in text
+                for entry in entries:
+                    self.assertIn(entry["case_id"], txt_content)
+
 
 if __name__ == "__main__":
     unittest.main()

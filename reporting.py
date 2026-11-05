@@ -33,10 +33,26 @@ def generate_cause_list_report(
     entries: list[CauseListEntry],
 ) -> str:
     """Format daily cause list for a judicial bench (BR-49)."""
+    # Clean bench_id and resolve the true listing date from entries if available
+    display_bench_id = bench_id
+    display_date = listing_date
+
+    if entries:
+        display_bench_id = entries[0].bench_id
+        display_date = entries[0].listing_date
+    elif "_" in bench_id:
+        parts = bench_id.rsplit("_", 1)
+        if len(parts) == 2:
+            try:
+                display_date = date.fromisoformat(parts[1])
+                display_bench_id = parts[0]
+            except ValueError:
+                pass
+
     lines = [
         "=" * 80,
-        f"DISTRICT COURT CAUSE LIST - BENCH: {bench_id}",
-        f"Sitting Date: {listing_date.isoformat()} | Total Matters Scheduled: {len(entries)}",
+        f"DISTRICT COURT CAUSE LIST - BENCH: {display_bench_id}",
+        f"Sitting Date: {display_date.isoformat()} | Total Matters Scheduled: {len(entries)}",
         "=" * 80,
         f"{'Pos':<5} | {'Case ID':<16} | {'Band':<6} | {'Carry-Over':<10} | {'Final':<6} | Flags",
         "-" * 80,
