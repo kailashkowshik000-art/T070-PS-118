@@ -316,6 +316,13 @@ def load_events(file_path: Path | str, known_cases: dict[str, Case] | None = Non
                 raise ValidationError(f"Event '{event_id}' has invalid new_stage '{raw_new_stage}'.")
 
         target_bench_id = item.get("target_bench_id")
+        raw_stage = item.get("stage")
+        stage = None
+        if raw_stage:
+            try:
+                stage = CaseStage(str(raw_stage).upper())
+            except ValueError:
+                raise ValidationError(f"Event '{event_id}' has invalid stage '{raw_stage}'.")
 
         events.append(
             HearingEvent(
@@ -332,6 +339,7 @@ def load_events(file_path: Path | str, known_cases: dict[str, Case] | None = Non
                 cost_paid=cost_paid,
                 new_stage=new_stage,
                 target_bench_id=target_bench_id,
+                stage=stage,
             )
         )
 

@@ -131,6 +131,8 @@ class HearingManager:
 
         case.stage = target_stage
         case.stage_start_date = event.hearing_date
+        if event.stage is None:
+            event.stage = target_stage
         case.adjournment_history.append(event)
 
         # Reaching ARGUMENTS sets final hearing priority (BR-32)
@@ -147,7 +149,7 @@ class HearingManager:
         self,
         case: Case,
         party_id: str | None,
-        stage: CaseStage,
+        stage: CaseStage | None = None,
     ) -> int:
         """Count party adjournments in the current stage, excluding court-occasioned and systemic reasons (BR-35)."""
         count = 0
@@ -161,6 +163,8 @@ class HearingManager:
                 e.outcome == HearingOutcome.ADJOURNED
                 and e.adjournment_reason not in systemic_reasons
             ):
+                if stage is not None and e.stage is not None and e.stage != stage:
+                    continue
                 if party_id is None or e.requesting_party == party_id:
                     count += 1
         return count
@@ -172,6 +176,8 @@ class HearingManager:
         board_counts: dict[date, int] | None = None,
     ) -> tuple[bool, str]:
         """Process an adjournment request complying with BR-34 through BR-38."""
+        if event.stage is None:
+            event.stage = case.stage
         is_court_occasioned = event.adjournment_reason == AdjournmentReason.COURT_OCCASIONED
         is_medical = event.adjournment_reason == AdjournmentReason.MEDICAL
 
@@ -339,6 +345,7 @@ class HearingManager:
             outcome=HearingOutcome.TRANSFERRED,
             adjournment_reason=reason_enum,
             target_bench_id=dest_bench.bench_id,
+            stage=case.stage,
             notes=f"Transferred from {old_bench_id} to {dest_bench.bench_id} due to {reason_str}",
         )
         case.adjournment_history.append(transfer_event)

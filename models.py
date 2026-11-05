@@ -91,6 +91,7 @@ class HearingEvent:
     cost_paid: bool = False
     new_stage: CaseStage | None = None
     target_bench_id: str | None = None
+    stage: CaseStage | None = None
 
 
 @dataclass

@@ -143,6 +143,37 @@ class TestHearingManagement(unittest.TestCase):
         allowed_med, _ = self.manager.process_adjournment(case, evt4_med)
         self.assertTrue(allowed_med)
 
+    def test_adjournment_count_resets_on_new_stage(self):
+        """Party adjournment quota is per stage: 3 adjournments in PLEADINGS do not block in ISSUES (BR-34)."""
+        case = Case(
+            case_id="C-STG-RESET",
+            case_type="CIVIL",
+            subject=SubjectType.CIVIL,
+            party_ids=["P1", "D1"],
+            filing_date=date(2026, 1, 1),
+            stage=CaseStage.ISSUES,
+            adjournment_history=[
+                HearingEvent("E1", "C-STG-RESET", date(2026, 2, 1), HearingOutcome.ADJOURNED, AdjournmentReason.PARTY_REQUEST, requesting_party="P1", stage=CaseStage.PLEADINGS),
+                HearingEvent("E2", "C-STG-RESET", date(2026, 3, 1), HearingOutcome.ADJOURNED, AdjournmentReason.PARTY_REQUEST, requesting_party="P1", stage=CaseStage.PLEADINGS),
+                HearingEvent("E3", "C-STG-RESET", date(2026, 4, 1), HearingOutcome.ADJOURNED, AdjournmentReason.PARTY_REQUEST, requesting_party="P1", stage=CaseStage.PLEADINGS),
+            ],
+        )
+        # In ISSUES, P1 has 0 adjournments so far
+        p1_issues_count = self.manager.get_party_adjournment_count(case, party_id="P1", stage=CaseStage.ISSUES)
+        self.assertEqual(p1_issues_count, 0)
+
+        # 1st adjournment in ISSUES should be permitted without cost
+        evt_issues_1 = HearingEvent(
+            "E4-ISSUE", "C-STG-RESET", date(2026, 5, 1),
+            HearingOutcome.ADJOURNED,
+            AdjournmentReason.PARTY_REQUEST,
+            requesting_party="P1",
+            stage=CaseStage.ISSUES,
+        )
+        allowed, msg = self.manager.process_adjournment(case, evt_issues_1)
+        self.assertTrue(allowed)
+        self.assertEqual(evt_issues_1.cost_assessed, Decimal("0.00"))
+
     def test_court_occasioned_adjournment_does_not_count_against_party(self):
         """Court-occasioned adjournments do not count towards party limit (BR-35)."""
         case = Case(
