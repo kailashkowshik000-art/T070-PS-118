@@ -1,0 +1,6 @@
+bench_id,presiding_officer,subject,sitting_days,in_camera_days,board_capacity,max_final_hearing
+BEN-01,"Smt. Kavitha Rao, I Addl. City Civil Judge",CIVIL,MON;TUE;WED;THU;FRI,,40,8
+BEN-02,"Sri Prakash Hegde, II Addl. City Civil Judge",CIVIL,MON;TUE;WED;THU;FRI,,40,8
+BEN-03,"Sri Mohammed Imran, Addl. Sessions Judge",CRIMINAL,MON;TUE;WED;THU;FRI,,40,8
+BEN-04,"Smt. Sudha Kulkarni, Principal Judge, Family Court",FAMILY,MON;WED;FRI,WED,40,8
+BEN-05,"Sri Venkatesh Murthy, Commercial Court Judge",COMMERCIAL,TUE;THU,,40,8

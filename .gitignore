@@ -58,3 +58,6 @@ Desktop.ini
 # Temporary outputs (keep directory structure with .gitkeep if desired)
 output/*
 !output/.gitkeep
+
+# Archives
+*.zip

@@ -78,6 +78,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Optional end date (YYYY-MM-DD) for multi-sitting simulation run",
     )
     parser.add_argument(
+        "--commands",
+        type=str,
+        default=None,
+        help="Path to official commands.txt file for command-driven simulation run",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print detailed cause lists and diaries to standard output",
@@ -251,6 +257,19 @@ def run_pipeline(
 
 def main() -> None:
     args = parse_arguments()
+
+    if args.commands:
+        from official_runner import OfficialRunner
+        runner = OfficialRunner(data_dir=args.data_dir, output_dir=args.output_dir)
+        runner.run_commands_file(args.commands)
+        runner.write_output_csvs()
+        print(f"Official command run complete. CSV outputs written to {args.output_dir}:")
+        print(f"  - admissions.csv: {len(runner.admissions_rows)} rows")
+        print(f"  - cause_lists.csv: {len(runner.cause_lists_rows)} rows")
+        print(f"  - case_diary.csv: {len(runner.case_diary_rows)} rows")
+        print(f"  - pendency.csv: {len(runner.pendency_rows)} rows")
+        sys.exit(0)
+
     try:
         target_date = datetime.strptime(args.date, "%Y-%m-%d").date()
     except ValueError:

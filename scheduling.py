@@ -13,9 +13,12 @@ from config import (
     COMMERCIAL_DISPOSAL_TARGET_DAYS,
     DAILY_BOARD_CAPACITY,
     DAILY_FINAL_HEARING_CAP,
+    FLAG_BUMPED,
     FLAG_CARRIED_OVER,
+    FLAG_CARRY_OVER,
     FLAG_ESCALATED,
     FLAG_IN_CAMERA,
+    FLAG_URGENT,
     UNREACHED_ESCALATION_THRESHOLD,
     URGENT_MENTION_CUTOFF_TIME,
 )
@@ -57,10 +60,10 @@ def get_next_sitting_day(
 
 
 def determine_priority_band(case: Case, listing_date: date) -> PriorityBand:
-    """Determine priority band (1 through 6) according to BR-19, BR-24, BR-25, and BR-32."""
-    # BR-25: Commercial case past 12 months target overrides ordinary priorities
-    if case.subject == SubjectType.COMMERCIAL and (listing_date - case.filing_date).days > COMMERCIAL_DISPOSAL_TARGET_DAYS:
-        base_band = PriorityBand.BAND_1_URGENT
+    """Determine priority band (0 through 6) according to BR-19, BR-24, BR-25, and BR-32."""
+    # BR-25 / EC-07: Commercial case past 12 months target overrides ordinary priorities (Band 0)
+    if (case.subject == SubjectType.COMMERCIAL or case.is_commercial) and (listing_date - case.filing_date).days > COMMERCIAL_DISPOSAL_TARGET_DAYS:
+        base_band = PriorityBand.BAND_0_DISPOSAL_TARGET
     # BR-19 Band 1: Urgent / bail matters
     elif case.urgency:
         base_band = PriorityBand.BAND_1_URGENT
@@ -68,7 +71,7 @@ def determine_priority_band(case: Case, listing_date: date) -> PriorityBand:
     elif case.is_part_heard:
         base_band = PriorityBand.BAND_2_PART_HEARD
     # BR-19 Band 3: Cases with 3 or more adjournments
-    elif len(case.adjournment_history) >= 3:
+    elif case.adjournments_total >= 3 or len(case.adjournment_history) >= 3:
         base_band = PriorityBand.BAND_3_THREE_PLUS_ADJOURNMENTS
     # BR-19 Band 4: Cases older than 2 years (approx 730 days)
     elif (listing_date - case.filing_date).days >= 730:
@@ -80,9 +83,9 @@ def determine_priority_band(case: Case, listing_date: date) -> PriorityBand:
     else:
         base_band = PriorityBand.BAND_6_REGULAR
 
-    # BR-24: Unreached on 3 consecutive sittings moves up one band
+    # BR-24 / EC-06: Unreached on 3 consecutive sittings moves up one band
     if case.consecutive_unreached_count >= UNREACHED_ESCALATION_THRESHOLD:
-        escalated_val = max(1, base_band.value - 1)
+        escalated_val = max(0, base_band.value - 1)
         return PriorityBand(escalated_val)
 
     return base_band
@@ -131,8 +134,9 @@ def generate_cause_list(
 
     for band, _, _, _, c, is_escalated in case_entries:
         # Check BR-26: Family cases involving minor only on designated days
-        if c.subject == SubjectType.FAMILY and c.involves_minor:
-            if listing_date.weekday() not in bench.designated_family_hearing_days:
+        if (c.subject == SubjectType.FAMILY or c.involves_minor) and c.involves_minor:
+            allowed_days = bench.in_camera_days if bench.in_camera_days else bench.designated_family_hearing_days
+            if listing_date.weekday() not in allowed_days:
                 # Cannot be listed today
                 c.carry_over_count += 1
                 c.consecutive_unreached_count += 1
@@ -142,7 +146,8 @@ def generate_cause_list(
         is_final = (c.stage == CaseStage.ARGUMENTS or c.final_hearing or band == PriorityBand.BAND_5_FINAL_HEARING)
 
         # Check BR-22: Final-hearing cap (max 8)
-        if is_final and final_hearing_count >= DAILY_FINAL_HEARING_CAP:
+        max_fh = getattr(bench, "max_final_hearing", DAILY_FINAL_HEARING_CAP)
+        if is_final and final_hearing_count >= max_fh:
             c.carry_over_count += 1
             c.consecutive_unreached_count += 1
             unreached.append(c)
@@ -159,12 +164,14 @@ def generate_cause_list(
         if is_final:
             final_hearing_count += 1
 
-        entry_flags: list[str] = list(c.flags)
-        if c.carry_over_count > 0 and FLAG_CARRIED_OVER not in entry_flags:
-            entry_flags.append(FLAG_CARRIED_OVER)
-        if is_escalated and FLAG_ESCALATED not in entry_flags:
-            entry_flags.append(FLAG_ESCALATED)
-        if c.subject == SubjectType.FAMILY and c.involves_minor and FLAG_IN_CAMERA not in entry_flags:
+        entry_flags: list[str] = [f for f in c.flags if f in {"DELAY", "DELAY_CONDONATION_PENDING", "OVERBOARD"}]
+        if c.urgency and FLAG_URGENT not in entry_flags:
+            entry_flags.append(FLAG_URGENT)
+        if c.carry_over_count > 0 and FLAG_CARRY_OVER not in entry_flags:
+            entry_flags.append(FLAG_CARRY_OVER)
+        if is_escalated and FLAG_BUMPED not in entry_flags:
+            entry_flags.append(FLAG_BUMPED)
+        if c.involves_minor and FLAG_IN_CAMERA not in entry_flags:
             entry_flags.append(FLAG_IN_CAMERA)
 
         position = len(cause_list) + 1

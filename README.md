@@ -127,11 +127,21 @@ pip install -r requirements.txt
    python main.py --data-dir data --output-dir output --date 2026-10-29 --simulate-until 2026-11-06 --verbose
    ```
 
+4. **Official Sample Data Stream Execution (6-Month Command Stream & Evaluation CSVs):**
+   ```bash
+   python main.py --commands data/official_sample/T070-PS-118-sample-data/commands.txt --data-dir data/official_sample/T070-PS-118-sample-data --output-dir output/official_run
+   ```
+   Or using the dedicated official runner directly:
+   ```bash
+   python official_runner.py --data-dir data/official_sample/T070-PS-118-sample-data --commands data/official_sample/T070-PS-118-sample-data/commands.txt --output-dir output/official_run
+   ```
+
 ### CLI Arguments
 | Argument | Default | Description |
 | :--- | :--- | :--- |
-| `--data-dir` | `data` | Directory containing `holidays.json`, `benches.json`, `filings.json`, `events.json`. |
-| `--output-dir` | `output` | Directory where output JSON and text reports will be written. |
+| `--commands` | `None` | Path to official `commands.txt` file for command-driven simulation run. |
+| `--data-dir` | `data` | Directory containing inputs (JSON fixtures or official CSV files). |
+| `--output-dir` | `output` | Directory where output files will be written. |
 | `--date` | `2026-10-29` | Target date (`YYYY-MM-DD`) for cause-list generation or simulation start date. |
 | `--simulate-until` | `None` | Optional end date (`YYYY-MM-DD`) for multi-sitting simulation run across dates. |
 | `--verbose` | `False` | Displays detailed human-readable cause-list tables and oversight summaries. |
@@ -151,7 +161,8 @@ python -m pytest
 ```
 
 **Test Suite Results:**
-- **80 passing tests** across 7 test modules with **0 failures and 0 errors** in **0.40 seconds**.
+- **105 passing tests** across 8 test modules with **0 failures and 0 errors** in **0.35 seconds**.
+- Includes dedicated `tests/test_official_scenarios.py` verifying all planted edge cases (EC-01 to EC-08) and extra traps.
 
 ---
 

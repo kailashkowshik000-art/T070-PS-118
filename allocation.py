@@ -41,11 +41,23 @@ class BenchAllocator:
         requires_commercial_bench = (
             subject == SubjectType.COMMERCIAL and claim_value > COMMERCIAL_CLAIM_THRESHOLD
         )
+        is_sub_commercial = (
+            subject == SubjectType.COMMERCIAL and claim_value <= COMMERCIAL_CLAIM_THRESHOLD
+        )
 
         for bench in self.benches:
             # Check subject jurisdiction
-            if subject not in bench.subject_jurisdictions:
-                continue
+            if is_sub_commercial:
+                # BR-03: Commercial claims <= 3 Lakh allocate to ordinary civil roster or general non-commercial court
+                is_eligible_for_sub_comm = (
+                    SubjectType.CIVIL in bench.subject_jurisdictions
+                    or (SubjectType.COMMERCIAL in bench.subject_jurisdictions and not bench.commercial_jurisdiction)
+                )
+                if not is_eligible_for_sub_comm:
+                    continue
+            else:
+                if subject not in bench.subject_jurisdictions:
+                    continue
 
             # Check commercial bench requirement (BR-03)
             if requires_commercial_bench and not bench.commercial_jurisdiction:
@@ -109,10 +121,13 @@ class BenchAllocator:
                 reason=reason,
             )
 
-        # Build roster key
-        roster_key = case.subject.value
-        if case.subject == SubjectType.COMMERCIAL and case.claim_value > COMMERCIAL_CLAIM_THRESHOLD:
-            roster_key += "_COMMERCIAL_SPECIAL"
+        # Build roster key (commercial <= 3 Lakh shares CIVIL round robin roster per BR-03)
+        if case.subject == SubjectType.COMMERCIAL and case.claim_value <= COMMERCIAL_CLAIM_THRESHOLD:
+            roster_key = SubjectType.CIVIL.value
+        elif case.subject == SubjectType.COMMERCIAL and case.claim_value > COMMERCIAL_CLAIM_THRESHOLD:
+            roster_key = SubjectType.COMMERCIAL.value
+        else:
+            roster_key = case.subject.value
 
         # Determine round-robin index
         current_index = self._roster_indices.get(roster_key, -1)

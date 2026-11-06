@@ -61,6 +61,7 @@ class AdjournmentReason(str, Enum):
 
 
 class PriorityBand(IntEnum):
+    BAND_0_DISPOSAL_TARGET = 0
     BAND_1_URGENT = 1
     BAND_2_PART_HEARD = 2
     BAND_3_THREE_PLUS_ADJOURNMENTS = 3
@@ -121,9 +122,17 @@ class Case:
     involves_minor: bool = False
     is_part_heard: bool = False
     stage_start_date: date | None = None
+    stage_since: date | None = None
     transferred_count: int = 0
     costs_assessed: Decimal = Decimal("0")
     costs_paid: Decimal = Decimal("0")
+    petitioner_id: str = ""
+    respondent_id: str = ""
+    amount_due_date: date | None = None
+    adjournments_petitioner_stage: int = 0
+    adjournments_respondent_stage: int = 0
+    adjournments_total: int = 0
+    is_commercial: bool = False
 
     @property
     def is_appeal(self) -> bool:
@@ -144,6 +153,9 @@ class Bench:
     leave_dates: set[date] = field(default_factory=set)
     conflict_party_ids: set[str] = field(default_factory=set)
     designated_family_hearing_days: list[int] = field(default_factory=lambda: [3])  # Thursday default
+    presiding_officer: str = ""
+    in_camera_days: list[int] = field(default_factory=list)
+    max_final_hearing: int = 8
 
 
 @dataclass

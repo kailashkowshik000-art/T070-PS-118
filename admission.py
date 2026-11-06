@@ -127,8 +127,8 @@ def process_admission(case: Case, holidays: set[date] | None = None) -> Admissio
     Rules applied: BR-07 through BR-18.
     Order: Limitation -> Condonation check -> Court fee calculation -> Defect handling.
     """
-    # Determine base date: order_date for appeals/revisions, cause_of_action_date for suits
-    base_date = case.order_date or case.cause_of_action_date or case.filing_date
+    # Determine base date: order_date for appeals/revisions, amount_due_date for money recovery, cause_of_action_date for suits
+    base_date = case.order_date or case.amount_due_date or case.cause_of_action_date or case.filing_date
     limitation_deadline = calculate_limitation_deadline(
         case_type=case.case_type,
         base_date=base_date,
