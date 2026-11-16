@@ -293,7 +293,7 @@ Refer to `docs/business-rules.md` for the line-by-line function and test traceab
 | `docs/glossary.md` | Domain terms |
 | `docs/demo-script.md` | Script for the 5-minute demo video |
 
-**Demo video:** _add the link here after uploading_
+**Demo video:** https://drive.google.com/file/d/1fSlCJ-r6zi1iPsEWYErkwU5n-0PA5rj_/view?usp=sharing
 
 ---
 
@@ -315,4 +315,4 @@ Refer to `docs/business-rules.md` for the line-by-line function and test traceab
 - [x] Multi-sitting simulation, transfer engine and judicial reports implemented.
 - [x] Strict input schema validation and error reporting.
 - [x] Final design document, decision log (DEC-01 to DEC-18) and demo script in `docs/`.
-- [ ] Demo video recorded and its link added in Section 10.
+- [x] Demo video recorded and its link added in Section 10.
