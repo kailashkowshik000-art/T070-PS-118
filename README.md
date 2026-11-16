@@ -6,7 +6,7 @@
 **Domain:** Public Services — Judiciary  
 **Programming Language:** Python 3.10+ (tested on Python 3.14)  
 **Interface:** Command-line and input-file driven (no GUI required)  
-**Checkpoint:** Week 3 Complete Business Rules Implementation (6 November 2026)  
+**Checkpoint:** Week 4 Final Submission  
 
 ---
 
@@ -31,9 +31,10 @@ The application simulates administrative workflows in a district court registry:
 
 ## 3. Project Structure
 
-```text
+```
 T070-PS-118/
 ├── main.py                  # CLI entry point, multi-sitting simulator, and pipeline coordinator
+├── official_runner.py       # Command-stream runner for the official data pack (writes the 4 evaluation CSVs)
 ├── models.py                # Domain models (Case, Bench, HearingEvent, CauseListEntry, enums)
 ├── config.py                # System constants, fee schedules, capacity limits, and status flags
 ├── input_output.py          # Input loaders, strict schema validators, and output report savers
@@ -44,43 +45,36 @@ T070-PS-118/
 ├── reporting.py             # Advanced judicial reports, diaries, cause lists, and summaries
 ├── requirements.txt         # Project dependencies (pytest)
 ├── README.md                # Project documentation and usage guide
-├── .gitignore               # Git ignore rules for Python, virtual environments, and IDEs
+├── .gitignore               # Git ignore rules (generated output/ files are ignored)
 │
-├── data/                    # Representative input fixtures
+├── data/                    # Input fixtures
 │   ├── benches.json         # Bench definitions, rosters, sitting days, and conflicts
 │   ├── holidays.json        # Court gazetted holidays
 │   ├── filings.json         # Case filings across civil, commercial, family, and criminal
-│   └── events.json          # Pre-existing hearing events, outcomes, and case history
+│   ├── events.json          # Pre-existing hearing events, outcomes, and case history
+│   └── official_sample/     # Official sample data pack (CSV files + commands.txt, ~680 commands)
 │
-├── output/                  # Deterministic output directory (13 artifacts)
-│   ├── admission_results.json
-│   ├── allocation_results.json
-│   ├── cause_lists.json
-│   ├── cause_lists.txt
-│   ├── case_diaries.json
-│   ├── case_diaries.txt
-│   ├── evidence_delay_report.json
-│   ├── evidence_delay_report.txt
-│   ├── principal_judge_report.json
-│   ├── principal_judge_report.txt
-│   ├── pendency_report.json
-│   ├── pendency_report.txt
-│   └── execution_summary.txt
+├── output/                  # Generated files are written here (git-ignored; recreate with the commands in Section 5)
 │
-├── tests/                   # Comprehensive test suite (80 unit and integration tests)
-│   ├── test_admission.py    # 17 unit tests for limitation, condonation, fees, and defects
-│   ├── test_allocation.py   # 8 unit tests for rosters, commercial cap, conflicts, and round-robin
-│   ├── test_scheduling.py   # 15 unit tests for priority bands, caps, carry-over, and mentions
-│   ├── test_hearings.py     # 13 unit tests for stage progression, adjournments, costs, and simulation
-│   ├── test_transfers.py    # 10 unit tests for transfer limit, reasons, conflicts, and calendar
-│   ├── test_reporting.py    # 8 unit tests for cause lists, diaries, delay, and Principal Judge reports
-│   └── test_integration.py  # 9 integration and negative validation tests
+├── tests/                   # Test suite (106 unit and integration tests)
+│   ├── test_admission.py          # 18 tests: limitation, condonation, fees, defects, leap day
+│   ├── test_allocation.py         #  8 tests: rosters, commercial threshold, conflicts, round-robin
+│   ├── test_scheduling.py         # 15 tests: priority bands, caps, carry-over, mentions
+│   ├── test_hearings.py           # 17 tests: stage progression, adjournments, costs, simulation
+│   ├── test_transfers.py          # 10 tests: transfer limit, reasons, conflicts, calendar
+│   ├── test_reporting.py          #  8 tests: cause lists, diaries, delay, Principal Judge report
+│   ├── test_integration.py        # 10 tests: end-to-end flows and negative validation
+│   └── test_official_scenarios.py # 20 tests: planted edge cases EC-01 to EC-08 and extra traps
 │
-└── docs/                    # Architectural and legal documentation
-    ├── glossary.md          # Domain glossary
-    ├── business-rules.md    # Complete traceability matrix for BR-01 through BR-51
-    ├── decision-log.md      # Architectural decisions (DEC-01 to DEC-13)
-    └── week1-design.pdf     # Week 1 Design Document artifact
+├── docs/                    # Design and decision documentation
+│   ├── design-document.md   # Final design document (architecture, class and state diagrams)
+│   ├── business-rules.md    # Traceability matrix for BR-01 through BR-51
+│   ├── decision-log.md      # Assumptions and decisions (DEC-01 to DEC-18)
+│   ├── glossary.md          # Domain glossary
+│   ├── demo-script.md       # Script and commands for the 5-minute demo video
+│   └── week1-design.pdf     # Week 1 design document (original)
+│
+└── 00_Index.docx ... 11_Week1_Completion_Checklist.docx   # Week 1 design documents (original, kept for history)
 ```
 
 ---
@@ -152,7 +146,7 @@ pip install -r requirements.txt
 
 The test suite can be run using either Python's built-in `unittest` runner or `pytest`:
 
-```bash
+```
 # Using Python's standard unittest runner:
 python -m unittest discover tests
 
@@ -160,9 +154,10 @@ python -m unittest discover tests
 python -m pytest
 ```
 
-**Test Suite Results:**
-- **105 passing tests** across 8 test modules with **0 failures and 0 errors** in **0.35 seconds**.
-- Includes dedicated `tests/test_official_scenarios.py` verifying all planted edge cases (EC-01 to EC-08) and extra traps.
+**Test suite:** 106 tests across 8 modules (counts per module are listed in Section 3). All pass with 0 failures and 0 errors.
+
+- `tests/test_official_scenarios.py` runs the official command stream and checks every planted edge case (EC-01 to EC-08) and the extra traps from the data pack.
+- Every business rule BR-01 to BR-51 maps to at least one test; see `docs/business-rules.md`.
 
 ---
 
@@ -242,7 +237,7 @@ Array of historical and scheduled hearing events:
 
 ## 8. Output Descriptions
 
-The engine generates 13 deterministic output files in `output/`:
+The standard run (`main.py` with `--data-dir data`) generates 13 deterministic files in the chosen output directory (default `output/`, which is git-ignored, so run the command to create them):
 
 1. `admission_results.json`: Records admission decisions (`ADMITTED`, `DEFECTIVE`, `REJECTED`, `RETURNED`), statutory limitation deadlines, applicable and paid fees, defect reasons, required flags, and cure deadlines.
 2. `allocation_results.json`: Records assigned bench ID or failure reason for each case.
@@ -258,11 +253,25 @@ The engine generates 13 deterministic output files in `output/`:
 12. `pendency_report.txt`: Formatted text version of the district court pendency report.
 13. `execution_summary.txt`: Concise run summary detailing filings processed, admission outcomes, allocations, and cause-list listings.
 
+### Official run outputs (command stream)
+
+A run with `--commands` (or `official_runner.py`) processes the command file strictly in order and writes four CSV files with the column order required for evaluation:
+
+| File | Content |
+| ---- | ------- |
+| `admissions.csv` | One row per `FILE` command: limitation last day and status, fee due/paid/status, bench, first date, admission status (the status at the time of the `FILE` command; see DEC-16) |
+| `cause_lists.csv` | One row per listed matter for each `PRINT_CAUSE_LIST`, in list order, with band (0 to 6) and flags |
+| `case_diary.csv` | One row per hearing/event for each printed case, in date order |
+| `pendency.csv` | One row per bench for each `PRINT_PENDENCY` |
+
+For the included sample data pack this produces 80 admission rows, 130 cause-list rows, 381 case-diary rows and 30 pendency rows.
+
 ---
 
 ## 9. Business Rule Coverage (BR-01 to BR-51)
 
 Every single business rule from BR-01 to BR-51 is **100% implemented and tested**:
+
 - **BR-01 to BR-06 (Bench Registration & Allocation):** Complete in `models.py` and `allocation.py`.
 - **BR-07 to BR-18 (Admission & Court Fees):** Complete in `admission.py`.
 - **BR-19 to BR-28 (Cause-List Generation & Priorities):** Complete in `scheduling.py`.
@@ -274,19 +283,36 @@ Refer to `docs/business-rules.md` for the line-by-line function and test traceab
 
 ---
 
-## 10. Known Limitations
+## 10. Documentation
 
-1. **Non-Standard Holiday Schemes:** Court holidays must be explicitly provided in `data/holidays.json` using ISO `YYYY-MM-DD` strings.
-2. **Fixed Adjournment Fine Tiers:** Party adjournment fines are fixed at statutory ₹2,000 (Civil/Family/Criminal) and ₹4,000 (Commercial) as specified in the brief.
+| Document | Purpose |
+| -------- | ------- |
+| `docs/design-document.md` | Final design: architecture, class diagram, state diagrams, processing flow, changes since Week 1 |
+| `docs/business-rules.md` | BR-01 to BR-51 traceability: rule, module and function, tests |
+| `docs/decision-log.md` | Ambiguities and the interpretation chosen (DEC-01 to DEC-18) |
+| `docs/glossary.md` | Domain terms |
+| `docs/demo-script.md` | Script for the 5-minute demo video |
+
+**Demo video:** _add the link here after uploading_
 
 ---
 
-## 11. Final Submission Readiness
+## 11. Known Limitations
 
-- [x] All 51 business rules (BR-01 through BR-51) fully implemented with zero placeholders.
-- [x] 80 unit and integration tests passing cleanly.
-- [x] Complete multi-sitting simulation enabled.
-- [x] Case transfer engine strictly enforcing 1-transfer limit and permitted reasons.
-- [x] Advanced judicial reporting including Principal District Judge reports and evidence delay exports.
+1. **Holidays must be supplied.** Court holidays come from `data/holidays.json` (or `holidays.csv`) as ISO `YYYY-MM-DD` dates; no holiday calendar is built in.
+2. **Fixed adjournment costs.** Costs are fixed at ₹2,000 (civil, family, criminal) and ₹4,000 (commercial), as specified in the brief.
+3. **Two execution paths differ on one point.** For a `MEDICAL` 4th adjournment the official command run charges the adjournment cost (as the data pack requires), while the JSON demo pipeline in `hearings.py` does not (DEC-02).
+4. **`admissions.csv` is a snapshot.** A filing cured after a `FILE` command stays `DEFECTIVE` in that row, although the case is registered and listed from the cure date; no `RETURNED` row is emitted by the official runner (DEC-16).
+5. **Leap-day limitation.** A period starting on 29 Feb ends on 28 Feb when the target year has no 29 Feb (DEC-14).
+
+---
+
+## 12. Final Submission Readiness
+
+- [x] All 51 business rules (BR-01 to BR-51) implemented and mapped to tests (`docs/business-rules.md`).
+- [x] 106 unit and integration tests passing.
+- [x] Official sample data pack runs end to end and writes the four evaluation CSVs.
+- [x] Multi-sitting simulation, transfer engine and judicial reports implemented.
 - [x] Strict input schema validation and error reporting.
-- [x] Clean Git repository status.
+- [x] Final design document, decision log (DEC-01 to DEC-18) and demo script in `docs/`.
+- [ ] Demo video recorded and its link added in Section 10.
