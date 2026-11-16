@@ -3,7 +3,7 @@
 **Project Title:** Court Case Listing and Adjournment Scheduling Engine with Cause-list Priorities and Limitation Periods  
 **Problem Statement:** PS-118  
 **Team ID:** T070  
-**Checkpoint:** Week 3 Complete Business Rules Implementation (6 November 2026)  
+**Checkpoint:** Week 4 Final Submission  
 
 ---
 
