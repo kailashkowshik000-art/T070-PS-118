@@ -20,6 +20,7 @@ from models import (
     SubjectType,
 )
 from admission import (
+    add_years,
     calculate_court_fee,
     calculate_limitation_deadline,
     process_admission,
@@ -223,6 +224,12 @@ class TestAdmissionModule(unittest.TestCase):
         # Check on day 8 (2026-03-09): cure deadline has passed without payment
         decision = check_cure_status(case, current_date=date(2026, 3, 9))
         self.assertEqual(decision, AdmissionDecision.RETURNED)
+
+    def test_leap_day_cause_of_action_maps_to_feb_28(self):
+        """DEC-14: a 3-year period from 29 Feb ends on 28 Feb when the target year has no 29 Feb."""
+        self.assertEqual(add_years(date(2024, 2, 29), 3), date(2027, 2, 28))
+        # Leap-to-leap keeps the same calendar date
+        self.assertEqual(add_years(date(2024, 2, 29), 4), date(2028, 2, 29))
 
 
 if __name__ == "__main__":
