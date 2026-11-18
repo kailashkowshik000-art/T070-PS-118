@@ -287,7 +287,8 @@ Refer to `docs/business-rules.md` for the line-by-line function and test traceab
 
 | Document | Purpose |
 | -------- | ------- |
-| `docs/design-document.md` |`PDF copy of final design document` | Final design: architecture, class diagram, state diagrams, processing flow, changes since Week 1 |
+| `docs/design-document.md` | Final design: architecture, class diagram, state diagrams, processing flow, changes since Week 1 |
+| `docs/design-document.pdf` | PDF copy of the final design document |diagram, state diagrams, processing flow, changes since Week 1 |
 | `docs/business-rules.md` | BR-01 to BR-51 traceability: rule, module and function, tests |
 | `docs/decision-log.md` | Ambiguities and the interpretation chosen (DEC-01 to DEC-18) |
 | `docs/glossary.md` | Domain terms |
